@@ -1,0 +1,54 @@
+CREATE EXTENSION IF NOT EXISTS postgis;
+
+CREATE TABLE IF NOT EXISTS Usuarios (
+    Id SERIAL PRIMARY KEY,
+    Nome VARCHAR(200) NOT NULL,
+    Email VARCHAR(200) NOT NULL UNIQUE,
+    Role VARCHAR(50) NOT NULL DEFAULT 'cidadao',
+    Ativo BOOLEAN NOT NULL DEFAULT TRUE,
+    FirebaseUid VARCHAR(200),
+    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS Denuncias (
+    Id SERIAL PRIMARY KEY,
+    Descricao VARCHAR(1000) NOT NULL,
+    Latitude DOUBLE PRECISION NOT NULL,
+    Longitude DOUBLE PRECISION NOT NULL,
+    Data TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    Status VARCHAR(50) NOT NULL,
+    IdUsuario INT NOT NULL,
+    Bairro VARCHAR(200),
+    Arquivada BOOLEAN NOT NULL DEFAULT FALSE,
+    DataArquivamento TIMESTAMP WITH TIME ZONE,
+    FOREIGN KEY (IdUsuario) REFERENCES Usuarios(Id) ON DELETE RESTRICT
+);
+
+ALTER TABLE Denuncias ADD COLUMN IF NOT EXISTS Arquivada BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE Denuncias ADD COLUMN IF NOT EXISTS DataArquivamento TIMESTAMP WITH TIME ZONE;
+
+CREATE TABLE IF NOT EXISTS Fotos (
+    Id SERIAL PRIMARY KEY,
+    UrlArquivo VARCHAR(500) NOT NULL,
+    NomeArquivo VARCHAR(100),
+    TipoMime VARCHAR(50),
+    DataUpload TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    IdDenuncia INT NOT NULL,
+    FOREIGN KEY (IdDenuncia) REFERENCES Denuncias(Id) ON DELETE CASCADE
+);
+
+INSERT INTO Usuarios (Nome, Email, Role, FirebaseUid)
+VALUES (
+    'Admin SACD',
+    'admin@sacd.com',
+    'gerenciador',
+    'firebase_uid_admin_123'
+) ON CONFLICT (Email) DO NOTHING;
+
+INSERT INTO Usuarios (Nome, Email, Role, FirebaseUid)
+VALUES (
+    'Cidadão Teste',
+    'cidadao@sacd.com',
+    'cidadao',
+    'firebase_uid_cidadao_456'
+) ON CONFLICT (Email) DO NOTHING;

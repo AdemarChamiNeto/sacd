@@ -1,0 +1,66 @@
+services:
+  frontend:
+    build:
+      context: ./sacd-frontend
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    volumes:
+      - uploads-data:/usr/share/nginx/html/uploads
+    depends_on:
+      - backend
+    networks:
+      - sacd-network
+
+  backend:
+    build:
+      context: ./sacd-backend
+      dockerfile: Dockerfile
+    ports:
+      - "5000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=sacd_db;Username=sacd_user;Password=sacd_password
+    volumes:
+      - ./sacd-backend/firebase-service-account.json:/app/firebase-service-account.json:ro
+      - uploads-data:/app/uploads
+    depends_on:
+      - db
+    networks:
+      - sacd-network
+
+  db:
+    image: postgis/postgis:16-3.4-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: sacd_db
+      POSTGRES_USER: sacd_user
+      POSTGRES_PASSWORD: sacd_password
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - sacd-network
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@sacd.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+    networks:
+      - sacd-network
+
+networks:
+  sacd-network:
+    driver: bridge
+
+volumes:
+  db-data:
+  uploads-data:

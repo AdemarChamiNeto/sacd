@@ -1,0 +1,26 @@
+# Dependências e builds
+node_modules/
+dist/
+coverage/
+bin/
+obj/
+*.user
+
+# Segredos — NUNCA commitar
+.env
+.env.*
+!.env.example
+firebase-service-account.json
+*-firebase-adminsdk-*.json
+
+# Uploads gerados em runtime
+uploads/
+
+# Editor / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Apresentações e arquivos grandes
+*.pptx
