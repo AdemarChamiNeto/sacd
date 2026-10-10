@@ -290,8 +290,11 @@ namespace sacd_backend.Controllers
                     return BadRequest(new { message = "Arquivo muito grande (máximo 5MB)" });
                 }
 
-                var allowedMimeTypes = new[] { "image/jpeg", "image/png", "image/webp" };
-                if (!allowedMimeTypes.Contains(file.ContentType))
+                // Confere o tipo pelos bytes do arquivo, não só pelo que o navegador declara
+                string? tipoReal;
+                using (var leitura = file.OpenReadStream())
+                    tipoReal = await sacd_backend.Seguranca.ImagemValidator.DetectarTipoAsync(leitura);
+                if (tipoReal is null || tipoReal != file.ContentType)
                 {
                     return BadRequest(new { message = "Tipo de arquivo não permitido (JPEG, PNG, WEBP)" });
                 }

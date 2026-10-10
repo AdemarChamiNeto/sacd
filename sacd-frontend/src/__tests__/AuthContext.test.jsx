@@ -12,6 +12,12 @@ vi.mock('firebase/auth', () => ({
 
 vi.mock('axios');
 
+// 2FA: por padrão a sessão já está completa ('ok'); testes específicos mudam isso
+vi.mock('../services/segundoFator', () => ({
+  situacaoSegundoFator: vi.fn().mockResolvedValue('ok'),
+}));
+import { situacaoSegundoFator } from '../services/segundoFator';
+
 // Componente auxiliar para testar o contexto
 const TestComponent = () => {
   const { currentUser, loading, role, isAuthenticated, hasPermission } = useAuth();
@@ -29,6 +35,7 @@ const TestComponent = () => {
 describe('AuthContext', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    situacaoSegundoFator.mockResolvedValue('ok');
   });
 
   it('deve iniciar com loading true', () => {
@@ -191,6 +198,34 @@ describe('AuthContext', () => {
     });
 
     expect(signOut).toHaveBeenCalled();
+  });
+
+  it('sem app autenticador: não busca o perfil e marca o 2FA como pendente', async () => {
+    situacaoSegundoFator.mockResolvedValue('cadastrar');
+    const mockUser = { email: 'novo@example.com', getIdToken: vi.fn().mockResolvedValue('t') };
+    onAuthStateChanged.mockImplementation((auth, callback) => { callback(mockUser); return () => {}; });
+
+    const Pendente = () => {
+      const { segundoFator, isAuthenticated, loading } = useAuth();
+      return <span data-testid="estado">{`${loading}|${segundoFator}|${isAuthenticated}`}</span>;
+    };
+    render(<AuthProvider><Pendente /></AuthProvider>);
+
+    await waitFor(() => expect(screen.getByTestId('estado').textContent).toBe('false|cadastrar|false'));
+    expect(axios.get).not.toHaveBeenCalled();
+  });
+
+  it('sessão sem 2FA de quem já tem autenticador: sai e pede login de novo', async () => {
+    situacaoSegundoFator.mockResolvedValue('reautenticar');
+    const mockUser = { email: 'x@example.com', getIdToken: vi.fn() };
+    onAuthStateChanged.mockImplementation((auth, callback) => { callback(mockUser); return () => {}; });
+
+    const Aviso = () => <span data-testid="aviso">{useAuth().aviso || ''}</span>;
+    render(<AuthProvider><Aviso /></AuthProvider>);
+
+    await waitFor(() => expect(signOut).toHaveBeenCalled());
+    expect(screen.getByTestId('aviso').textContent).toMatch(/código do app autenticador/);
+    expect(axios.get).not.toHaveBeenCalled();
   });
 
   it('deve lançar erro se useAuth for usado fora do AuthProvider', () => {

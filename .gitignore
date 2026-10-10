@@ -11,6 +11,7 @@ obj/
 .env.*
 !.env.example
 firebase-service-account.json
+segredos/
 *-firebase-adminsdk-*.json
 
 # Uploads gerados em runtime

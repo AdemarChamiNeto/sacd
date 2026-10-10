@@ -1,0 +1,8 @@
+{
+  "name": "sacd-ativar-totp",
+  "private": true,
+  "type": "module",
+  "description": "Liga o 2FA por app autenticador (TOTP) no projeto do Firebase. Rodar uma vez só.",
+  "scripts": { "ativar": "node ativar-totp.mjs", "remover-2fa": "node remover-2fa.mjs" },
+  "dependencies": { "firebase-admin": "12.7.0" }
+}

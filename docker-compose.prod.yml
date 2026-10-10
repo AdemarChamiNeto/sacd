@@ -1,0 +1,84 @@
+# Produção: só o Caddy fica exposto (80/443, HTTPS automático). Banco e API ficam na rede interna.
+# Uso:  cp .env.example .env  →  preencha  →  docker compose -f docker-compose.prod.yml up -d --build
+name: sacd
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMINIO: ${DOMINIO:?defina DOMINIO no .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - frontend
+
+  frontend:
+    build:
+      context: ./sacd-frontend
+      args:
+        VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY:?}
+        VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN:?}
+        VITE_FIREBASE_PROJECT_ID: ${VITE_FIREBASE_PROJECT_ID:?}
+        VITE_FIREBASE_STORAGE_BUCKET: ${VITE_FIREBASE_STORAGE_BUCKET:-}
+        VITE_FIREBASE_MESSAGING_SENDER_ID: ${VITE_FIREBASE_MESSAGING_SENDER_ID:-}
+        VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID:?}
+        VITE_FIREBASE_MEASUREMENT_ID: ${VITE_FIREBASE_MEASUREMENT_ID:-}
+        VITE_GA_ID: ${VITE_GA_ID:-}
+        VITE_CLARITY_ID: ${VITE_CLARITY_ID:-}
+        VITE_CONTATO_EMAIL: ${VITE_CONTATO_EMAIL:-}
+        VITE_EXIGIR_2FA: "true"
+    restart: unless-stopped
+    volumes:
+      - uploads-data:/usr/share/nginx/html/uploads:ro
+    depends_on:
+      - backend
+
+  backend:
+    build: ./sacd-backend
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=${POSTGRES_DB:-sacd_db};Username=${POSTGRES_USER:-sacd_user};Password=${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+      Firebase__CredentialsPath: /run/secrets/firebase
+      Auth__ExigirSegundoFator: "true"
+      Proxy__Saltos: "2"   # Caddy → Nginx → API (IP real do visitante no rate limit)
+    secrets:
+      - firebase
+    volumes:
+      - uploads-data:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgis/postgis:16-3.4-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sacd_db}
+      POSTGRES_USER: ${POSTGRES_USER:-sacd_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/01-init-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # sem "ports": o banco não fica acessível pela internet
+
+secrets:
+  firebase:
+    file: ./segredos/firebase-service-account.json
+
+volumes:
+  db-data:
+  uploads-data:
+  caddy-data:
+  caddy-config:

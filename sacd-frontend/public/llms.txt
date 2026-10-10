@@ -1,0 +1,12 @@
+# SACD — Sistema de Apoio ao Controle da Dengue
+
+> Sistema web para registrar e acompanhar focos de dengue. Cidadãos denunciam focos com descrição, localização no mapa e fotos; fiscais e gestores acompanham num mapa (com mapa de calor e busca por raio), mudam o status e consultam estatísticas por bairro. Projeto de TCC em Engenharia de Software.
+
+## Páginas públicas
+- [Início](https://sacdonline.com.br/): o que é o SACD e números gerais das denúncias.
+- [Entrar / criar conta](https://sacdonline.com.br/login): cadastro de cidadão (e-mail, senha e verificação em duas etapas obrigatória).
+- [Privacidade](https://sacdonline.com.br/privacidade): quais dados são guardados e para quê.
+
+## Sobre o projeto
+- Código: https://github.com/AdemarChamiNeto/sacd
+- Stack: React + Vite, Leaflet, ASP.NET Core (.NET 8), PostgreSQL + PostGIS, Firebase Authentication.

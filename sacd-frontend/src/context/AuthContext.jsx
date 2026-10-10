@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useMemo, useState, useCall
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import axios from 'axios';
 import { auth } from '../firebase';
+import { situacaoSegundoFator } from '../services/segundoFator';
 
 const AuthContext = createContext();
 
@@ -12,6 +13,9 @@ export const AuthProvider = ({ children }) => {
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // 'ok' | 'cadastrar' (sem app autenticador ainda) — ver services/segundoFator.js
+  const [segundoFator, setSegundoFator] = useState('ok');
+  const [aviso, setAviso] = useState(null);
 //busca do perfil do usuario no banco via GET /usuarios/me usando token do firebase para autenticação
   const fetchUserProfile = useCallback(async (user) => {
     if (!user) {
@@ -53,12 +57,26 @@ export const AuthProvider = ({ children }) => {
       if (!user) {
         setCurrentUser(null);
         setUserProfile(null);
+        setSegundoFator('ok');
         setLoading(false);
         return;
       }
 
+      // 2FA obrigatório: sem o segundo fator a API recusa tudo, então nem busca o perfil
+      const situacao = await situacaoSegundoFator(user);
+      if (situacao === 'reautenticar') {
+        // acabou de cadastrar o autenticador: a sessão atual não vale, precisa entrar com o código
+        setAviso('Entre de novo usando o código do app autenticador.');
+        await signOut(auth);
+        return;
+      }
+      setSegundoFator(situacao);
       setCurrentUser(user);
-      await fetchUserProfile(user);
+      if (situacao === 'ok') {
+        await fetchUserProfile(user);
+      } else {
+        setUserProfile(null);
+      }
       setLoading(false);
     });
 
@@ -125,7 +143,10 @@ export const AuthProvider = ({ children }) => {
     refreshProfile,
     hasPermission,
     isAuthenticated: !!currentUser && !!userProfile,
-  }), [currentUser, userProfile, loading, error, refreshProfile, hasPermission]);
+    segundoFator,
+    aviso,
+    limparAviso: () => setAviso(null),
+  }), [currentUser, userProfile, loading, error, refreshProfile, hasPermission, segundoFator, aviso]);
 
   return (
     <AuthContext.Provider value={value}>

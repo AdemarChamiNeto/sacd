@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 
 function ProtectedRoute({ children, requiredRole = 'cidadao' }) {
-  const { currentUser, userProfile, loading, isAuthenticated, hasPermission } = useAuth();
+  const { currentUser, userProfile, loading, isAuthenticated, hasPermission, segundoFator } = useAuth();
 
   if (loading) {
     return (
@@ -22,6 +22,11 @@ function ProtectedRoute({ children, requiredRole = 'cidadao' }) {
         </div>
       </motion.div>
     );
+  }
+
+  // logado, mas ainda sem app autenticador: cadastrar o 2FA antes de qualquer coisa
+  if (currentUser && segundoFator === 'cadastrar') {
+    return <Navigate to="/2fa" replace />;
   }
 
   if (!currentUser || !isAuthenticated) {

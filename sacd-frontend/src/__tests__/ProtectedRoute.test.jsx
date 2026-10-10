@@ -145,4 +145,25 @@ describe('ProtectedRoute', () => {
 
     expect(screen.getByTestId('child')).toBeInTheDocument();
   });
+  it('deve mandar para /2fa quem ainda não cadastrou o app autenticador', () => {
+    useAuth.mockReturnValue({
+      currentUser: { email: 'novo@test.com' },
+      userProfile: null,
+      loading: false,
+      isAuthenticated: false,
+      segundoFator: 'cadastrar',
+      hasPermission: vi.fn().mockReturnValue(false),
+    });
+
+    render(
+      <MemoryRouter>
+        <ProtectedRoute requiredRole="cidadao">
+          <ChildComponent />
+        </ProtectedRoute>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByTestId('navigate')).toHaveAttribute('data-to', '/2fa');
+    expect(screen.queryByTestId('child')).not.toBeInTheDocument();
+  });
 });

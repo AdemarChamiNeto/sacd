@@ -59,7 +59,9 @@ namespace sacd_backend.Services
             var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "uploads");
             Directory.CreateDirectory(uploadsPath);
 
-            var nomeArquivo = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
+            // Extensão a partir do tipo já validado (nunca do nome enviado pelo usuário)
+            var extensao = sacd_backend.Seguranca.ImagemValidator.Extensoes.TryGetValue(file.ContentType, out var ext) ? ext : ".bin";
+            var nomeArquivo = $"{Guid.NewGuid()}{extensao}";
             var caminhoCompleto = Path.Combine(uploadsPath, nomeArquivo);
 
             using (var stream = new FileStream(caminhoCompleto, FileMode.Create))

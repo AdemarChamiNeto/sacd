@@ -1,0 +1,12 @@
+# HTTPS automático (Let's Encrypt) para o domínio do .env
+{$DOMINIO}, www.{$DOMINIO} {
+	@www host www.{$DOMINIO}
+	redir @www https://{$DOMINIO}{uri} permanent
+
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+	reverse_proxy frontend:80
+}

@@ -1,6 +1,6 @@
-bin/
-obj/
-.vscode/
-.env
+bin
+obj
+uploads
 firebase-service-account.json
-uploads/
+*-firebase-adminsdk-*.json
+appsettings.Development.json

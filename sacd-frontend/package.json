@@ -21,6 +21,7 @@
     "leaflet.heat": "^0.2.0",
     "lucide-react": "^0.293.0",
     "postcss": "^8.4.31",
+    "qrcode": "1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.24.1",

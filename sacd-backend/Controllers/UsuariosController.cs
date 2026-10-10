@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Security.Claims;
 using System.Linq;
+using sacd_backend.Seguranca;
 
 namespace sacd_backend.Controllers
 {
@@ -15,10 +16,12 @@ namespace sacd_backend.Controllers
     public class UsuariosController : ControllerBase
     {
         private readonly IUsuarioService _usuarioService;
+        private readonly IVerificadorToken _verificador;
 
-        public UsuariosController(IUsuarioService usuarioService)
+        public UsuariosController(IUsuarioService usuarioService, IVerificadorToken verificador)
         {
             _usuarioService = usuarioService;
+            _verificador = verificador;
         }
 
         [HttpGet("me")]
@@ -47,13 +50,42 @@ namespace sacd_backend.Controllers
             return Ok(await _usuarioService.GetAllUsuariosAsync());
         }
 
+        /// <summary>DTO do cadastro: só o nome vem do cliente. Uid e e-mail saem do token do Firebase.</summary>
+        public sealed record NovoUsuarioRequest(string Nome);
+
+        /// <summary>
+        /// Cria o perfil do usuário logo depois do cadastro no Firebase.
+        /// Não usa o esquema de autenticação (o usuário ainda não existe no banco), então
+        /// verifica o token aqui mesmo: uid e e-mail vêm do token, nunca do corpo da requisição.
+        /// </summary>
         [HttpPost]
         [AllowAnonymous]
-        public async Task<ActionResult<Usuario>> PostUsuario(Usuario usuario)
+        public async Task<ActionResult<Usuario>> PostUsuario([FromBody] NovoUsuarioRequest request)
         {
-            usuario.Role = "cidadao";
-            usuario.Ativo = true;
-            usuario.CreatedAt = DateTime.UtcNow;
+            var token = TokenBearer.Extrair(Request);
+            if (token is null) return Unauthorized(new { message = "Token ausente." });
+
+            var verificado = await _verificador.VerificarAsync(token, HttpContext.RequestAborted);
+            if (verificado is null) return Unauthorized(new { message = "Token inválido ou expirado." });
+            if (string.IsNullOrWhiteSpace(verificado.Email))
+                return BadRequest(new { message = "A conta precisa de um e-mail." });
+
+            var nome = request.Nome?.Trim() ?? "";
+            if (nome.Length is < 2 or > 120)
+                return BadRequest(new { message = "Informe um nome entre 2 e 120 caracteres." });
+
+            if (await _usuarioService.GetUsuarioByFirebaseUidAsync(verificado.Uid) is not null)
+                return Conflict(new { message = "Usuário já cadastrado." });
+
+            var usuario = new Usuario
+            {
+                Nome = nome,
+                Email = verificado.Email,
+                FirebaseUid = verificado.Uid,
+                Role = "cidadao", // todo cadastro novo é cidadão; só o técnico promove
+                Ativo = true,
+                CreatedAt = DateTime.UtcNow,
+            };
 
             await _usuarioService.AddUsuarioAsync(usuario);
             return CreatedAtAction("GetMe", new { }, usuario);

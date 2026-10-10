@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /$
+Allow: /login
+Allow: /privacidade
+Disallow: /api/
+Disallow: /uploads/
+Disallow: /2fa
+Disallow: /denuncia
+Disallow: /denuncias
+Disallow: /dashboard
+Disallow: /mapa
+Disallow: /estatisticas
+Disallow: /arquivadas
+Disallow: /usuarios
+
+Sitemap: https://sacdonline.com.br/sitemap.xml

@@ -1,3 +1,5 @@
+# Ambiente de DESENVOLVIMENTO (senhas fixas de propósito, portas abertas, pgAdmin).
+# Para produção use docker-compose.prod.yml.
 services:
   frontend:
     build:
@@ -20,6 +22,8 @@ services:
       - "5000:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+      # 2FA: em dev local pode desligar com false se o Firebase de teste não tiver TOTP ativo
+      - Auth__ExigirSegundoFator=${SACD_EXIGIR_2FA:-true}
       - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=sacd_db;Username=sacd_user;Password=sacd_password
     volumes:
       - ./sacd-backend/firebase-service-account.json:/app/firebase-service-account.json:ro
@@ -38,7 +42,8 @@ services:
       POSTGRES_PASSWORD: sacd_password
     volumes:
       - db-data:/var/lib/postgresql/data
-      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+      - ./init-db.sql:/docker-entrypoint-initdb.d/01-init-db.sql
+      - ./seed-dev.sql:/docker-entrypoint-initdb.d/02-seed-dev.sql
     ports:
       - "5432:5432"
     networks:

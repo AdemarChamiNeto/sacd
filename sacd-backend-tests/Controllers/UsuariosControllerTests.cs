@@ -5,6 +5,7 @@ using Moq;
 using sacd_backend.Controllers;
 using sacd_backend.Models;
 using sacd_backend.Services;
+using sacd_backend.Seguranca;
 using System.Security.Claims;
 using Xunit;
 
@@ -13,12 +14,25 @@ namespace SacdBackend.Tests.Controllers
     public class UsuariosControllerTests
     {
         private readonly Mock<IUsuarioService> _mockUsuarioService;
+        private readonly Mock<IVerificadorToken> _mockVerificador;
         private readonly UsuariosController _controller;
 
         public UsuariosControllerTests()
         {
             _mockUsuarioService = new Mock<IUsuarioService>();
-            _controller = new UsuariosController(_mockUsuarioService.Object);
+            _mockVerificador = new Mock<IVerificadorToken>();
+            _controller = new UsuariosController(_mockUsuarioService.Object, _mockVerificador.Object);
+        }
+
+        /// <summary>Simula a requisição de cadastro com o header Authorization.</summary>
+        private void SetupCadastro(string? token, TokenVerificado? verificado)
+        {
+            var http = new DefaultHttpContext();
+            if (token != null) http.Request.Headers.Authorization = $"Bearer {token}";
+            _controller.ControllerContext = new ControllerContext { HttpContext = http };
+            _mockVerificador
+                .Setup(v => v.VerificarAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(verificado);
         }
 
         private void SetupUserContext(string firebaseUid, string role, int? userId = null)
@@ -116,50 +130,64 @@ namespace SacdBackend.Tests.Controllers
         // ==========================================
 
         [Fact]
-        public async Task PostUsuario_DeveCriarNovoCidadao()
+        public async Task PostUsuario_DeveCriarCidadaoComUidEEmailDoToken()
         {
-            _mockUsuarioService
-                .Setup(s => s.AddUsuarioAsync(It.IsAny<Usuario>()))
-                .Returns(Task.CompletedTask);
+            SetupCadastro("token-maria", new TokenVerificado("uid-maria", "maria@test.com", false));
+            _mockUsuarioService.Setup(s => s.AddUsuarioAsync(It.IsAny<Usuario>())).Returns(Task.CompletedTask);
 
-            var novoUsuario = new Usuario
-            {
-                Nome = "Maria",
-                Email = "maria@test.com",
-                FirebaseUid = "uid-maria",
-                Role = "tecnico", // deve ser forçado para cidadao
-            };
+            var result = await _controller.PostUsuario(new UsuariosController.NovoUsuarioRequest("Maria"));
 
-            var result = await _controller.PostUsuario(novoUsuario);
-
-            result.Result.Should().BeOfType<CreatedAtActionResult>();
-
-            var createdResult = result.Result as CreatedAtActionResult;
-            var created = createdResult!.Value as Usuario;
-            created!.Role.Should().Be("cidadao"); // sempre cidadão
+            var created = (result.Result as CreatedAtActionResult)!.Value as Usuario;
+            created!.Role.Should().Be("cidadao");
             created.Ativo.Should().BeTrue();
+            created.FirebaseUid.Should().Be("uid-maria");
+            created.Email.Should().Be("maria@test.com");
+            created.Nome.Should().Be("Maria");
         }
 
         [Fact]
-        public async Task PostUsuario_DeveForcarRoleCidadao_MesmoSePassarOutraRole()
+        public async Task PostUsuario_SemToken_Retorna401()
         {
-            _mockUsuarioService
-                .Setup(s => s.AddUsuarioAsync(It.IsAny<Usuario>()))
-                .Returns(Task.CompletedTask);
+            SetupCadastro(null, null);
 
-            var novoUsuario = new Usuario
-            {
-                Nome = "Hacker",
-                Email = "hacker@test.com",
-                FirebaseUid = "uid-hacker",
-                Role = "tecnico", // tentativa de escalada
-            };
+            var result = await _controller.PostUsuario(new UsuariosController.NovoUsuarioRequest("Hacker"));
 
-            await _controller.PostUsuario(novoUsuario);
+            result.Result.Should().BeOfType<UnauthorizedObjectResult>();
+            _mockUsuarioService.Verify(s => s.AddUsuarioAsync(It.IsAny<Usuario>()), Times.Never);
+        }
 
-            _mockUsuarioService.Verify(s => s.AddUsuarioAsync(
-                It.Is<Usuario>(u => u.Role == "cidadao")
-            ), Times.Once);
+        [Fact]
+        public async Task PostUsuario_TokenInvalido_Retorna401()
+        {
+            SetupCadastro("token-falso", null);
+
+            var result = await _controller.PostUsuario(new UsuariosController.NovoUsuarioRequest("Hacker"));
+
+            result.Result.Should().BeOfType<UnauthorizedObjectResult>();
+            _mockUsuarioService.Verify(s => s.AddUsuarioAsync(It.IsAny<Usuario>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task PostUsuario_JaCadastrado_Retorna409()
+        {
+            SetupCadastro("token", new TokenVerificado("uid-existente", "a@test.com", false));
+            _mockUsuarioService.Setup(s => s.GetUsuarioByFirebaseUidAsync("uid-existente"))
+                .ReturnsAsync(new Usuario { Id = 1, FirebaseUid = "uid-existente", Email = "a@test.com", Role = "tecnico" });
+
+            var result = await _controller.PostUsuario(new UsuariosController.NovoUsuarioRequest("Outro"));
+
+            result.Result.Should().BeOfType<ConflictObjectResult>();
+            _mockUsuarioService.Verify(s => s.AddUsuarioAsync(It.IsAny<Usuario>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task PostUsuario_NomeVazio_Retorna400()
+        {
+            SetupCadastro("token", new TokenVerificado("uid-novo", "n@test.com", false));
+
+            var result = await _controller.PostUsuario(new UsuariosController.NovoUsuarioRequest("  "));
+
+            result.Result.Should().BeOfType<BadRequestObjectResult>();
         }
 
         // ==========================================

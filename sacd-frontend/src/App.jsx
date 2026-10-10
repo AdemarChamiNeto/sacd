@@ -5,6 +5,9 @@ import Footer from './components/Footer';
 import MinhasDenuncias from './components/MinhasDenuncias';
 import Home from './pages/Home';
 import Login from './pages/Login';
+import SegundoFator from './pages/SegundoFator';
+import Privacidade from './pages/Privacidade';
+import ConsentimentoAnalytics from './components/ConsentimentoAnalytics';
 import Denuncia from './pages/Denuncia';
 import Mapa from './pages/Mapa';
 import Dashboard from './pages/Dashboard';
@@ -53,6 +56,7 @@ function AppContent() {
   return (
     <div className="flex flex-col min-h-screen bg-sacd-light text-sacd-black selection:bg-primary-100 selection:text-primary-700">
       <Header />
+      <ConsentimentoAnalytics />
       {/* Barra de Minhas Denúncias */}
       {location.pathname === '/' && <MinhasDenuncias />}
 
@@ -73,6 +77,8 @@ function AppContent() {
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
+              <Route path="/2fa" element={<SegundoFator />} />
+              <Route path="/privacidade" element={<Privacidade />} />
               {/* Rotas protegidas por nível de acesso */}
               {/* Cidadão e acima */}
               <Route path="/denuncia" element={
