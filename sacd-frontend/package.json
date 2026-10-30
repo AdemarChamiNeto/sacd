@@ -15,7 +15,7 @@
   "dependencies": {
     "autoprefixer": "^10.4.16",
     "axios": "^1.7.7",
-    "firebase": "^10.8.0",
+    "firebase": "^13.1.0",
     "framer-motion": "^10.16.4",
     "leaflet": "^1.9.4",
     "leaflet.heat": "^0.2.0",
